@@ -23,6 +23,7 @@ local halstead_capt = require 'metrics.captures.halstead'
 local ftree_capt = require 'metrics.captures.functiontree'
 local stats_capt = require 'metrics.captures.statements'
 local cyclo_capt = require 'metrics.captures.cyclomatic'
+local hyper_capt = require 'metrics.captures.hypergraph'
 
 module ("metrics")
 
@@ -39,7 +40,8 @@ grammar.pipe(ftree_capt.captures, halstead_capt.captures)
 grammar.pipe(ldoc_capt.captures, ftree_capt.captures)
 grammar.pipe(stats_capt.captures,ldoc_capt.captures)
 grammar.pipe(cyclo_capt.captures, stats_capt.captures)
-grammar.pipe(capture_table, cyclo_capt.captures)
+grammar.pipe(hyper_capt.captures, cyclo_capt.captures)
+grammar.pipe(capture_table, hyper_capt.captures)
 
 
 local lua = lpeg.P(grammar.apply(parser.rules, rules.rules, capture_table))
