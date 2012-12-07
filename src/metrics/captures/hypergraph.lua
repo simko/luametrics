@@ -110,6 +110,38 @@ captures = (function()
 			end
 		end
 
+		for _, functionNode in pairs(node.metrics.functionDefinitions) do
+			
+			if functionNode.name then 
+				print (functionNode.name)
+				local functionHyperNode = getHyperGraphNodeFromNode(functionNode)				
+				local block = utils.getBlockFromFunction(functionNode)
+	
+				if (block) then -- should always be true but to be sure
+					
+					for _ , variable in pairs(block.metrics.blockdata.locals_total) do
+							print ('','',variable[1])
+							local edge = HG.E'uses'
+							graph[edge] = { [HG.I'user'] = functionHyperNode, [HG.I'local_variable'] = getHyperGraphNodeFromNode(variable[2][1]) }
+							for _ , occurence in pairs(variable[2]) do
+								print ('','','',occurence)
+								graph[edge][HG.I'point'] = getHyperGraphNodeFromNode(occurence)
+							end
+					end
+					
+					for name, occurences in pairs(block.metrics.blockdata.remotes) do
+						print ('', 'used remote', name, #occurences)
+						local edge = HG.E'uses'
+						graph[edge] = { [HG.I'user'] = functionHyperNode, [HG.I'remote_variable'] = getHyperGraphNodeFromNode(occurences[1]) }
+						for _ , occurence in pairs(occurences) do
+							graph[edge][HG.I'point'] = getHyperGraphNodeFromNode(occurence)
+						end
+					end
+					
+				end
+			end
+		end
+
 		node.hypergraph = graph
 
 		graph:CreateNodes()
