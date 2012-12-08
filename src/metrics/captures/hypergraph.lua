@@ -103,10 +103,7 @@ captures = (function()
 
 		local currentHyperNode = getHyperGraphNodeFromNode(node);
 		local	codeblock = utils.searchForTagItem_recursive('Block', node, 2)
-		for k,v in pairs(codeblock.metrics.blockdata.remotes) do
-			print (k,v)
-		end
-		
+				
 		for _, child in pairs(node.data or {}) do
 			graph[HG.E'treerelation'] = { [HG.I'parent'] = currentHyperNode, [HG.I'child'] = getHyperGraphNodeFromNode(child) }
 		end
