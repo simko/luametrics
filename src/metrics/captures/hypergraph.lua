@@ -74,7 +74,7 @@ function getVariableCommonPoint(node, name)
 				if occurences[1] == name then
 --					print ('', 'found', occurences[2][1], occurences[2][1].nodeid, occurences[2][1].text)
 					for k,v in pairs(occurences[2][1]) do
-						print ('','',k,v)
+--						print ('','',k,v)
 					end
 					return occurences[2][1]
 				end
