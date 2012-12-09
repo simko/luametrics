@@ -12,8 +12,9 @@ graph = HG.H{}
 function getHyperGraphNodeFromNode(node)
 	if node.hypergraphnode then return node.hypergraphnode end
 
-	local hypergraphnode = HG.N(node.tag)
+	local hypergraphnode = HG.N(node.tag or 'unknown')
 	hypergraphnode.nodeid = node.nodeid;
+	hypergraphnode.data = node
 	
 	node.hypergraphnode = hypergraphnode
 
@@ -60,54 +61,39 @@ function getCallerCalee(masterNode, functionName)
 	return returnValues
 end
 
-function getVariableCommonPoint(node, name)
---	print ('looking for', node.nodeid, name)
-	local parent = node.parent
-	
-	while true do 
-		if parent == nill or parent.parent == nil then return node end
-		parent = parent.parent 
-		
-		if parent.tag == 'Block' then
-			for localname, occurences in pairs(parent.metrics.blockdata.locals) do
---				print ('', occurences[1])
-				if occurences[1] == name then
---					print ('', 'found', occurences[2][1], occurences[2][1].nodeid, occurences[2][1].text)
-					for k,v in pairs(occurences[2][1]) do
---						print ('','',k,v)
-					end
-					return occurences[2][1]
-				end
-			end
-		end
+function normalProcessNode(data) 
+	local currentHyperNode = getHyperGraphNodeFromNode(data);
+	for _, child in pairs(data.data or {}) do
+		graph[HG.E'treerelation'] = { [HG.I'parent'] = currentHyperNode, [HG.I'child'] = getHyperGraphNodeFromNode(child) }
 	end
-	
+
+	return data 
+end
+
+function processFunction(funcAst)
+	local funcHyperNode = getHyperGraphNodeFromNode(funcAst);
+	local edge = HG.E'measures'
+	local metric_i = HG.I'metric'
+	edge.type = 'infoflow'
+	edge.description = 'information flow metric'
+	metric_i.type = 'infoflow'
+	metric_i.description = 'information flow metric'
+	graph[edge] = { [HG.I'subject'] = funcHyperNode, [metric_i] = getHyperGraphNodeFromNode(funcAst.metrics.infoflow) }
+	for _, used_node in pairs(funcAst.metrics.infoflow.used_nodes) do
+		graph[edge][HG.I'point'] = getHyperGraphNodeFromNode(used_node)
+	end
 end
 
 captures = (function()
 	local key,value
 	local new_table = {}
 	for key,value in pairs(keys) do
-		new_table[key] = function (data) 
-
-			local currentHyperNode = getHyperGraphNodeFromNode(data);
-			for _, child in pairs(data.data or {}) do
-				graph[HG.E'treerelation'] = { [HG.I'parent'] = currentHyperNode, [HG.I'child'] = getHyperGraphNodeFromNode(child) }
-			end
-
-			return data 
-		end
+		new_table[key] = normalProcessNode
 	end
 	
 	new_table[1] = function (node) 
 
-		local currentHyperNode = getHyperGraphNodeFromNode(node);
-		local	codeblock = utils.searchForTagItem_recursive('Block', node, 2)
-				
-		for _, child in pairs(node.data or {}) do
-			graph[HG.E'treerelation'] = { [HG.I'parent'] = currentHyperNode, [HG.I'child'] = getHyperGraphNodeFromNode(child) }
-		end
-
+		normalProcessNode(node)
 
 		for _, functionNode in pairs(node.metrics.functionDefinitions) do
 			if functionNode.name then 
@@ -145,6 +131,8 @@ captures = (function()
 					
 					for _ , variable in pairs(block.metrics.blockdata.locals_total) do
 							local edge = HG.E'uses'
+							edge.type = 'local_variable'
+							edge.description = 'uses a local variable for block'
 							graph[edge] = { [HG.I'user'] = functionHyperNode, [HG.I'local_variable'] = getHyperGraphNodeFromNode(variable[2][1]) }
 							for _ , occurence in pairs(variable[2]) do
 								graph[edge][HG.I'point'] = getHyperGraphNodeFromNode(occurence)
@@ -153,7 +141,9 @@ captures = (function()
 					
 					for name, occurences in pairs(block.metrics.blockdata.remotes) do
 						local edge = HG.E'uses'
-						graph[edge] = { [HG.I'user'] = functionHyperNode, [HG.I'remote_variable'] = getHyperGraphNodeFromNode(getVariableCommonPoint(occurences[1],name)) }
+						edge.type = 'remote_variable'
+						edge.description = 'uses a remote variable for block'
+						graph[edge] = { [HG.I'user'] = functionHyperNode, [HG.I'remote_variable'] = getHyperGraphNodeFromNode(utils.getVariableCommonPoint(occurences[1],name)) }
 						for _ , occurence in pairs(occurences) do
 							graph[edge][HG.I'point'] = getHyperGraphNodeFromNode(occurence)
 						end
@@ -169,6 +159,10 @@ captures = (function()
 
 		return node
 	end
+
+	new_table['GlobalFunction'] = function(data) processFunction(data) normalProcessNode(data) return data end
+	new_table['LocalFunction'] = function(data) processFunction(data) normalProcessNode(data) return data end
+	new_table['Function'] = function(data) processFunction(data) normalProcessNode(data) return data end
 	
 	return new_table
 end)()
