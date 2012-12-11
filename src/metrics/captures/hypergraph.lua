@@ -106,16 +106,21 @@ captures = (function()
 					print ('Callee function', value[3].tag, value[3].nodeid,  value[3].name)
 					print ('-----------')
 					]]--
-					local callnode = getHyperGraphNodeFromNode(value[1])
-					callnode.shortname = value[1].text
+					
+					if value[1] ~= nil and value[2] ~= nil and value[3] ~=nil then
+					
+						local callnode = getHyperGraphNodeFromNode(value[1])
+						callnode.shortname = value[1].text
 
-					local caller = getHyperGraphNodeFromNode(value[2])
-					caller.shortname = value[2].name
+						local caller = getHyperGraphNodeFromNode(value[2])
+						caller.shortname = value[2].name
 
-					local callee = getHyperGraphNodeFromNode(value[3])
-					callee.shortname = value[3].name
+						local callee = getHyperGraphNodeFromNode(value[3])
+						callee.shortname = value[3].name
 
-					graph[HG.E'calls'] = { [HG.I'caller'] = caller, [HG.I'callee'] = callee, [HG.I'callnode'] = callnode }
+						graph[HG.E'calls'] = { [HG.I'caller'] = caller, [HG.I'callee'] = callee, [HG.I'callnode'] = callnode }
+						
+					end
 				end
 
 			end
