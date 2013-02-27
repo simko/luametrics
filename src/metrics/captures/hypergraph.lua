@@ -72,6 +72,7 @@ end
 
 function processFunction(funcAst)
 	local funcHyperNode = getHyperGraphNodeFromNode(funcAst);
+	
 	local edge = HG.E'measures'
 	local metric_i = HG.I'metric'
 	edge.type = 'infoflow'
@@ -82,6 +83,15 @@ function processFunction(funcAst)
 	for _, used_node in pairs(funcAst.metrics.infoflow.used_nodes) do
 		graph[edge][HG.I'point'] = getHyperGraphNodeFromNode(used_node)
 	end
+	
+	local edge = HG.E'measures'
+	local metric_i = HG.I'metric'
+	edge.type = 'loc'
+	edge.description = 'lines of code metric'
+	metric_i.type = 'loc'
+	metric_i.description = 'lines of code metric'
+	graph[edge] = { [HG.I'subject'] = funcHyperNode, [metric_i] = getHyperGraphNodeFromNode(funcAst.metrics.LOC) }
+	
 end
 
 captures = (function()
