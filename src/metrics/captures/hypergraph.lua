@@ -67,7 +67,38 @@ function normalProcessNode(data)
 		graph[HG.E'treerelation'] = { [HG.I'parent'] = currentHyperNode, [HG.I'child'] = getHyperGraphNodeFromNode(child) }
 	end
 
+	local stat = findStatementForNode(data)
+	if stat ~= nil then
+			local order = 0
+			local edge = HG.E'executes'
+			graph[edge] = { [HG.I'subject'] = currentHyperNode }
+			for _, used_node in pairs(stat) do
+				order = order + 1
+				local node = getHyperGraphNodeFromNode(used_node)
+				node.statementExecuteOrder = order
+				graph[edge][HG.I'statement'] = node
+			end
+	end
 	return data 
+end
+
+function findStatementForNode(node)
+	local stats = {}
+	
+	for _, child in pairs(node.data or {}) do
+		if child.tag ~= 'Stat' and child.tag ~= 'LastStat' then
+			local stats2 = findStatementForNode(child)
+			for k, v in pairs(stats2) do table.insert(stats, v) end
+		else
+			if child.tag == 'LastStat' then 
+				table.insert(stats, child);
+			else
+				table.insert(stats, child.data[1])
+			end
+		end
+	end
+
+	return stats
 end
 
 function processFunction(funcAst)
