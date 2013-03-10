@@ -5,9 +5,10 @@ local utils = require 'metrics.utils'
 local HG = require 'hypergraph'
 local keys = (require 'metrics.rules').rules
 
-module ('metrics.captures.hypergraph')
+hypergraph = hypergraph or HG.H{}
+local graph = hypergraph
 
-graph = HG.H{}
+module ('metrics.captures.hypergraph')
 
 function getHyperGraphNodeFromNode(node)
 	if node.hypergraphnode then return node.hypergraphnode end
