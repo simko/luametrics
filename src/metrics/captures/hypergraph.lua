@@ -72,7 +72,8 @@ function normalProcessNode(data)
 	if stat ~= nil then
 			local order = 0
 			local edge = HG.E'executes'
-			graph[edge] = { [HG.I'subject'] = currentHyperNode }
+			edge.type = 'statement'
+			graph[edge] = { [HG.I'executor'] = currentHyperNode }
 			for _, used_node in pairs(stat) do
 				order = order + 1
 				local node = getHyperGraphNodeFromNode(used_node)
@@ -160,7 +161,9 @@ captures = (function()
 						local callee = getHyperGraphNodeFromNode(value[3])
 						callee.shortname = value[3].name
 
-						graph[HG.E'calls'] = { [HG.I'caller'] = caller, [HG.I'callee'] = callee, [HG.I'callnode'] = callnode }
+						local edge = HG.E'executes'
+						edge.type = 'function'
+						graph[edge] = { [HG.I'executor'] = caller, [HG.I'function'] = callee, [HG.I'executepoint'] = callnode }
 						
 					end
 				end
