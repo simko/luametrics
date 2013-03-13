@@ -64,8 +64,10 @@ end
 
 function normalProcessNode(data) 
 	local currentHyperNode = getHyperGraphNodeFromNode(data);
+	local treeRelationEdge = HG.E'treerelation'
+	graph[treeRelationEdge] = { [HG.I'parent'] = currentHyperNode }
 	for _, child in pairs(data.data or {}) do
-		graph[HG.E'treerelation'] = { [HG.I'parent'] = currentHyperNode, [HG.I'child'] = getHyperGraphNodeFromNode(child) }
+		graph[treeRelationEdge][HG.I'child'] = getHyperGraphNodeFromNode(child)
 	end
 
 	local stat = findStatementForNode(data)
