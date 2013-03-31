@@ -64,6 +64,7 @@ end
 
 function normalProcessNode(data) 
 	local currentHyperNode = getHyperGraphNodeFromNode(data);
+	
 	local treeRelationEdge = HG.E'treerelation'
 	graph[treeRelationEdge] = { [HG.I'parent'] = currentHyperNode }
 	for _, child in pairs(data.data or {}) do
@@ -83,6 +84,37 @@ function normalProcessNode(data)
 				graph[edge][HG.I'statement'] = node
 			end
 	end
+	
+	local edge = HG.E'measures'
+	local metric_i = HG.I'metric'
+	edge.type = 'loc'
+	edge.description = 'lines of code metric'
+	metric_i.type = 'loc'
+	metric_i.description = 'lines of code metric'
+	graph[edge] = { [HG.I'subject'] = currentHyperNode, [metric_i] = getHyperGraphNodeFromNode(data.metrics.LOC) }
+
+	if data.tag == 'Block' then
+		local edge = HG.E'defines'
+		edge.type = 'function'
+		edge.description = 'defines a function'
+		graph[edge] = { [HG.I'definer'] = currentHyperNode }
+
+		for _, functionNode in pairs(data.metrics.blockdata.fundefs) do
+			graph[edge][HG.I'function'] = getHyperGraphNodeFromNode(functionNode)
+		end
+	end
+	
+	if data.tag == 'STARTPOINT' then
+		local edge = HG.E'defines'
+		edge.type = 'function'
+		edge.description = 'defines a function'
+		graph[edge] = { [HG.I'definer'] = currentHyperNode }
+
+		for _, functionNode in pairs(data.metrics.functionDefinitions) do
+			graph[edge][HG.I'function'] = getHyperGraphNodeFromNode(functionNode)
+		end
+	end
+	
 	return data 
 end
 
@@ -117,15 +149,7 @@ function processFunction(funcAst)
 	graph[edge] = { [HG.I'subject'] = funcHyperNode, [metric_i] = getHyperGraphNodeFromNode(funcAst.metrics.infoflow) }
 	for _, used_node in pairs(funcAst.metrics.infoflow.used_nodes) do
 		graph[edge][HG.I'point'] = getHyperGraphNodeFromNode(used_node)
-	end
-	
-	local edge = HG.E'measures'
-	local metric_i = HG.I'metric'
-	edge.type = 'loc'
-	edge.description = 'lines of code metric'
-	metric_i.type = 'loc'
-	metric_i.description = 'lines of code metric'
-	graph[edge] = { [HG.I'subject'] = funcHyperNode, [metric_i] = getHyperGraphNodeFromNode(funcAst.metrics.LOC) }
+	end	
 	
 end
 
@@ -138,38 +162,37 @@ captures = (function()
 	
 	new_table[1] = function (node) 
 
+		local hypernode = getHyperGraphNodeFromNode(node)
+		
 		normalProcessNode(node)
 
 		for _, functionNode in pairs(node.metrics.functionDefinitions) do
-			if functionNode.name then 
-				local calleevalues = getCallerCalee(node, functionNode.name) 
-				for _, value in pairs(calleevalues) do
-					--[[
-					print ('-----------')
-					print ('Call node', value[1].tag, value[1].nodeid, value[1].text)
-					print ('Caller function', value[2].tag, value[2].nodeid,  value[2].name)
-					print ('Callee function', value[3].tag, value[3].nodeid,  value[3].name)
-					print ('-----------')
-					]]--
+			local calleevalues = getCallerCalee(node, functionNode.name) 
+			for _, value in pairs(calleevalues) do
+				--[[
+				print ('-----------')
+				print ('Call node', value[1].tag, value[1].nodeid, value[1].text)
+				print ('Caller function', value[2].tag, value[2].nodeid,  value[2].name)
+				print ('Callee function', value[3].tag, value[3].nodeid,  value[3].name)
+				print ('-----------')
+				]]--
 					
-					if value[1] ~= nil and value[2] ~= nil and value[3] ~=nil then
+				if value[1] ~= nil and value[2] ~= nil and value[3] ~=nil then
 					
-						local callnode = getHyperGraphNodeFromNode(value[1])
-						callnode.shortname = value[1].text
+					local callnode = getHyperGraphNodeFromNode(value[1])
+					callnode.shortname = value[1].text
 
-						local caller = getHyperGraphNodeFromNode(value[2])
-						caller.shortname = value[2].name
+					local caller = getHyperGraphNodeFromNode(value[2])
+					caller.shortname = value[2].name
 
-						local callee = getHyperGraphNodeFromNode(value[3])
-						callee.shortname = value[3].name
+					local callee = getHyperGraphNodeFromNode(value[3])
+					callee.shortname = value[3].name
 
-						local edge = HG.E'executes'
-						edge.type = 'function'
-						graph[edge] = { [HG.I'executor'] = caller, [HG.I'function'] = callee, [HG.I'executepoint'] = callnode }
+					local edge = HG.E'executes'
+					edge.type = 'function'
+					graph[edge] = { [HG.I'executor'] = caller, [HG.I'function'] = callee, [HG.I'executepoint'] = callnode }
 						
-					end
 				end
-
 			end
 		end
 
