@@ -93,7 +93,7 @@ function normalProcessNode(data)
 	metric_i.description = 'lines of code metric'
 	graph[edge] = { [HG.I'subject'] = currentHyperNode, [metric_i] = getHyperGraphNodeFromNode(data.metrics.LOC) }
 
-	if data.tag == 'Block' then
+	if data.tag == 'Block' or data.tag == 'STARTPOINT' then
 		local edge = HG.E'defines'
 		edge.type = 'function'
 		edge.description = 'defines a function'
@@ -102,19 +102,41 @@ function normalProcessNode(data)
 		for _, functionNode in pairs(data.metrics.blockdata.fundefs) do
 			graph[edge][HG.I'function'] = getHyperGraphNodeFromNode(functionNode)
 		end
-	end
-	
-	if data.tag == 'STARTPOINT' then
-		local edge = HG.E'defines'
-		edge.type = 'function'
-		edge.description = 'defines a function'
-		graph[edge] = { [HG.I'definer'] = currentHyperNode }
-
-		for _, functionNode in pairs(data.metrics.functionDefinitions) do
-			graph[edge][HG.I'function'] = getHyperGraphNodeFromNode(functionNode)
+		
+		for _ , variable in pairs(data.metrics.blockdata.locals_total) do
+			local edge = HG.E'uses'
+			edge.type = 'local_variable'
+			edge.description = name
+			graph[edge] = { [HG.I'user'] = currentHyperNode, [HG.I'local_variable'] = getHyperGraphNodeFromNode(variable[2][1]) }
+			for _ , occurence in pairs(variable[2]) do
+				graph[edge][HG.I'point'] = getHyperGraphNodeFromNode(occurence)
+			end
 		end
+					
+		for name, occurences in pairs(data.metrics.blockdata.remotes) do
+			local edge = HG.E'uses'
+			edge.type = 'remote_variable'
+			edge.description = name
+			graph[edge] = { [HG.I'user'] = currentHyperNode, [HG.I'remote_variable'] = getHyperGraphNodeFromNode(utils.getVariableCommonPoint(occurences[1],name)) }
+			for _ , occurence in pairs(occurences) do
+				graph[edge][HG.I'point'] = getHyperGraphNodeFromNode(occurence)
+			end
+		end
+		
+		for _, variableInstance in pairs(data.metrics.blockdata.locals) do	
+			local name = variableInstance[1]
+			local occurences = variableInstance[2]	
+			local edge = HG.E'defines'
+			edge.type = 'variable'
+			edge.description = name
+			graph[edge] = { [HG.I'definer'] = currentHyperNode }
+			for _, occurence in pairs(occurences) do
+				graph[edge][HG.I'point'] = getHyperGraphNodeFromNode(occurence)
+			end
+		end
+		
 	end
-	
+		
 	return data 
 end
 
@@ -139,6 +161,7 @@ end
 
 function processFunction(funcAst)
 	local funcHyperNode = getHyperGraphNodeFromNode(funcAst);
+	local functionBlock = utils.searchForTagItem_recursive('Block', funcAst, 2) 
 	
 	local edge = HG.E'measures'
 	local metric_i = HG.I'metric'
@@ -150,6 +173,40 @@ function processFunction(funcAst)
 	for _, used_node in pairs(funcAst.metrics.infoflow.used_nodes) do
 		graph[edge][HG.I'point'] = getHyperGraphNodeFromNode(used_node)
 	end	
+	
+	for _ , variable in pairs(functionBlock.metrics.blockdata.locals_total) do
+		local edge = HG.E'uses'
+		edge.type = 'local_variable'
+		edge.description = name
+		graph[edge] = { [HG.I'user'] = funcHyperNode, [HG.I'local_variable'] = getHyperGraphNodeFromNode(variable[2][1]) }
+		for _ , occurence in pairs(variable[2]) do
+			graph[edge][HG.I'point'] = getHyperGraphNodeFromNode(occurence)
+		end
+	end
+					
+	for name, occurences in pairs(functionBlock.metrics.blockdata.remotes) do
+		local edge = HG.E'uses'
+		edge.type = 'remote_variable'
+		edge.description = name
+		graph[edge] = { [HG.I'user'] = funcHyperNode, [HG.I'remote_variable'] = getHyperGraphNodeFromNode(utils.getVariableCommonPoint(occurences[1],name)) }
+		for _ , occurence in pairs(occurences) do
+			graph[edge][HG.I'point'] = getHyperGraphNodeFromNode(occurence)
+		end
+	end
+
+	for _, variableInstance in pairs(functionBlock.metrics.blockdata.locals) do	
+
+		local name = variableInstance[1]
+		local occurences = variableInstance[2]	
+		local edge_defines = HG.E'defines'
+		edge_defines.type = 'variable'
+		edge_defines.description = name
+		graph[edge_defines] = { [HG.I'definer'] = funcHyperNode }
+		for _, occurence in pairs(occurences) do
+			graph[edge_defines][HG.I'point'] = getHyperGraphNodeFromNode(occurence)
+		end
+					
+	end
 	
 end
 
@@ -192,38 +249,6 @@ captures = (function()
 					edge.type = 'function'
 					graph[edge] = { [HG.I'executor'] = caller, [HG.I'function'] = callee, [HG.I'executepoint'] = callnode }
 						
-				end
-			end
-		end
-
-		for _, functionNode in pairs(node.metrics.functionDefinitions) do
-			
-			if functionNode.name then 
-				local functionHyperNode = getHyperGraphNodeFromNode(functionNode)				
-				local block = utils.getBlockFromFunction(functionNode)
-	
-				if (block) then -- should always be true but to be sure
-					
-					for _ , variable in pairs(block.metrics.blockdata.locals_total) do
-							local edge = HG.E'uses'
-							edge.type = 'local_variable'
-							edge.description = 'uses a local variable for block'
-							graph[edge] = { [HG.I'user'] = functionHyperNode, [HG.I'local_variable'] = getHyperGraphNodeFromNode(variable[2][1]) }
-							for _ , occurence in pairs(variable[2]) do
-								graph[edge][HG.I'point'] = getHyperGraphNodeFromNode(occurence)
-							end
-					end
-					
-					for name, occurences in pairs(block.metrics.blockdata.remotes) do
-						local edge = HG.E'uses'
-						edge.type = 'remote_variable'
-						edge.description = 'uses a remote variable for block'
-						graph[edge] = { [HG.I'user'] = functionHyperNode, [HG.I'remote_variable'] = getHyperGraphNodeFromNode(utils.getVariableCommonPoint(occurences[1],name)) }
-						for _ , occurence in pairs(occurences) do
-							graph[edge][HG.I'point'] = getHyperGraphNodeFromNode(occurence)
-						end
-					end
-					
 				end
 			end
 		end
