@@ -73,16 +73,66 @@ function normalProcessNode(data)
 
 	local stat = findStatementForNode(data)
 	if stat ~= nil then
-			local order = 0
-			local edge = HG.E'executes'
-			edge.type = 'statement'
-			graph[edge] = { [HG.I'executor'] = currentHyperNode }
-			for _, used_node in pairs(stat) do
-				order = order + 1
-				local node = getHyperGraphNodeFromNode(used_node)
-				node.statementExecuteOrder = order
-				graph[edge][HG.I'statement'] = node
+		local order = 0
+		local edge = HG.E'executes'
+		edge.type = 'statement'
+		graph[edge] = { [HG.I'executor'] = currentHyperNode }
+		for _, used_node in pairs(stat) do
+			order = order + 1
+			local node = getHyperGraphNodeFromNode(used_node)
+			node.statementExecuteOrder = order
+			graph[edge][HG.I'statement'] = node
+		end
+		
+		local assignStatements = {}
+		local functionStatements = {}
+		local otherStatements = {}
+		
+		for _, statement in pairs(stat) do
+			
+			if 	statement.tag == 'LocalFunction' or 
+				statement.tag == 'Function' or 
+				statement.tag == 'GlobalFunction'
+			then
+				table.insert(functionStatements, statement)
+			elseif
+				statement.tag == 'Assign' or
+				statement.tag == 'LocalAssign'
+			then
+				table.insert(assignStatements, statement)
+			else
+				table.insert(otherStatements, statement)
 			end
+			
+		end
+		
+		if #assignStatements > 0 then
+			local edge = HG.E'groups'
+			local groupRoot = HG.N'AssignGroup'
+			graph[edge] = { [HG.I'groupParent'] = currentHyperNode, [HG.I'groupRoot'] = groupRoot}		
+			for _, stat in pairs(assignStatements) do
+				graph[edge][HG.I'groupNode'] = 	getHyperGraphNodeFromNode(stat)		
+			end
+		end
+
+		if #functionStatements > 0 then		
+			local edge = HG.E'groups'
+			local groupRoot = HG.N'FunctionGroup'
+			graph[edge] = { [HG.I'groupParent'] = currentHyperNode, [HG.I'groupRoot'] = groupRoot}		
+			for _, stat in pairs(functionStatements) do
+				graph[edge][HG.I'groupNode'] = 	getHyperGraphNodeFromNode(stat)		
+			end
+		end
+
+		if #otherStatements > 0 then
+			local edge = HG.E'groups'
+			local groupRoot = HG.N'OthersGroup'		
+			graph[edge] = { [HG.I'groupParent'] = currentHyperNode, [HG.I'groupRoot'] = groupRoot}		
+			for _, stat in pairs(otherStatements) do
+				graph[edge][HG.I'groupNode'] = 	getHyperGraphNodeFromNode(stat)		
+			end
+		end
+		
 	end
 	
 	local edge = HG.E'measures'
