@@ -10,6 +10,7 @@ local graph = hypergraph
 
 module ('metrics.captures.hypergraph')
 
+-- get or create hypernode from AST node
 function getHyperGraphNodeFromNode(node)
 	if node.hypergraphnode then return node.hypergraphnode end
 
@@ -22,6 +23,7 @@ function getHyperGraphNodeFromNode(node)
 	return hypergraphnode
 end
 
+-- get all callers and callee of node
 function getCallerCalee(masterNode, functionName)
 
 	local returnValues = {}
@@ -62,6 +64,7 @@ function getCallerCalee(masterNode, functionName)
 	return returnValues
 end
 
+-- process node, add all standars relations
 function normalProcessNode(data) 
 	local currentHyperNode = getHyperGraphNodeFromNode(data);
 	
@@ -190,6 +193,7 @@ function normalProcessNode(data)
 	return data 
 end
 
+-- find all statements for node, return in table
 function findStatementForNode(node)
 	local stats = {}
 	
@@ -209,6 +213,7 @@ function findStatementForNode(node)
 	return stats
 end
 
+-- process all relations specific or different to function
 function processFunction(funcAst)
 	local funcHyperNode = getHyperGraphNodeFromNode(funcAst);
 	local functionBlock = utils.searchForTagItem_recursive('Block', funcAst, 2) 
@@ -260,6 +265,7 @@ function processFunction(funcAst)
 	
 end
 
+-- set captures function, what to do on each AST node
 captures = (function()
 	local key,value
 	local new_table = {}
